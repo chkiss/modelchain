@@ -64,6 +64,7 @@ def run(
     bench: Bench | None = None,
     on_bench: Callable[[str, str, Any, int | None], None] | None = None,
     raise_on_exhaustion: bool = False,
+    fatal: tuple[type[BaseException], ...] = (),
 ) -> Result:
     """Try each model in turn until one succeeds.
 
@@ -74,6 +75,11 @@ def run(
     ``on_bench(model, kind, error, seconds)`` is called for each benched model
     after the walk, so an application can alert or log. A ``gone`` model — one
     that will not recover on its own — is the case worth telling someone about.
+
+    ``fatal`` names exception types that end the walk immediately instead of
+    counting as a failure. Some errors are about the caller's credentials
+    rather than the model, and walking the whole chain to fail identically at
+    every step wastes time and tells the user nothing.
     """
     bench = bench if bench is not None else MemoryBench()
     result = Result()
@@ -85,6 +91,9 @@ def run(
 
         try:
             value, error = attempt(model)
+        except fatal:
+            _triage(result.attempts, bench, on_bench)
+            raise
         except Exception as exc:  # noqa: BLE001 - the next model may work
             value, error = None, f"{type(exc).__name__}: {exc}"
 

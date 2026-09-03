@@ -268,3 +268,31 @@ def test_the_catalogue_is_not_refetched_every_call():
     for _ in range(3):
         free_models("https://example.test/v1", fetch=counting)
     assert len(calls) == 1
+
+
+class BadKey(Exception):
+    """A failure about the caller's credentials, not about the model."""
+
+
+def test_a_fatal_error_stops_the_walk_at_once():
+    """Every model would fail identically, so trying them proves nothing."""
+    tried = []
+
+    def attempt(model):
+        tried.append(model)
+        raise BadKey("401 unauthorized")
+
+    with pytest.raises(BadKey):
+        run(["a", "b", "c"], attempt, fatal=(BadKey,))
+    assert tried == ["a"]
+
+
+def test_a_fatal_error_is_not_swallowed_by_the_generic_handler():
+    with pytest.raises(BadKey):
+        run(["a"], lambda m: (_ for _ in ()).throw(BadKey("nope")), fatal=(BadKey,))
+
+
+def test_without_fatal_the_same_error_is_just_a_failure():
+    result = run(["a", "b"], lambda m: (_ for _ in ()).throw(BadKey("nope")))
+    assert not result.ok
+    assert len(result.attempts) == 2
