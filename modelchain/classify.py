@@ -80,7 +80,7 @@ def bench_reason(why) -> str:
     text = str(why or "")
     if "503" in text:
         return "provider outage (503)"
-    if "429" in text or "FreeUsageLimit" in text or "Rate limit" in text.title():
+    if "429" in text or "FreeUsageLimit" in text or "Rate limit" in text:
         return "free-tier rate limit (429)"
     if "empty content" in text:
         return "returned empty content"

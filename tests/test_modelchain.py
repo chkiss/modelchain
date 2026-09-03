@@ -296,3 +296,13 @@ def test_without_fatal_the_same_error_is_just_a_failure():
     result = run(["a", "b"], lambda m: (_ for _ in ()).throw(BadKey("nope")))
     assert not result.ok
     assert len(result.attempts) == 2
+
+
+def test_bench_reason_matches_the_substrings_it_documents():
+    """Copied from a working implementation; must behave identically."""
+    assert bench_reason("Rate limit exceeded") == "free-tier rate limit (429)"
+    assert bench_reason("HTTP 429") == "free-tier rate limit (429)"
+    assert bench_reason("FreeUsageLimitError") == "free-tier rate limit (429)"
+    assert bench_reason("empty content") == "returned empty content"
+    assert bench_reason("404 model gone") == "model withdrawn (404)"
+    assert bench_reason("weird") == "weird"
