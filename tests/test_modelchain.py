@@ -391,3 +391,38 @@ def test_long_expired_records_are_dropped():
     bench.bench("new", "timeout", TEMP_COOLDOWN_SECONDS)
     assert "old" not in bench._load()
     assert "new" in bench._load()
+
+
+class StatusError(str):
+    """An error that remembers its HTTP status, as a caller may supply."""
+
+    def __new__(cls, status, text):
+        error = super().__new__(cls, text)
+        error.status = status
+        return error
+
+
+def test_a_status_on_the_error_reaches_classification():
+    """Without this, a 429 body mentioning 404 benches the model for ever."""
+    seen = []
+    run(
+        ["a"],
+        lambda model: (None, StatusError(429, "rate limited, request req_404abc")),
+        on_bench=lambda model, kind, error, seconds: seen.append(kind),
+    )
+    assert seen == ["temporary"]
+
+
+def test_without_a_status_the_message_is_still_used():
+    seen = []
+    run(
+        ["a"],
+        lambda model: (None, "404 no such model"),
+        on_bench=lambda model, kind, error, seconds: seen.append(kind),
+    )
+    assert seen == ["gone"]
+
+
+def test_the_status_is_recorded_on_the_attempt():
+    result = run(["a"], lambda model: (None, StatusError(503, "down")))
+    assert result.attempts[0].status == 503
